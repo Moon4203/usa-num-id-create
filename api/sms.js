@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 export default async function handler(req, res) {
   const { token } = req.query;
 
@@ -8,19 +10,23 @@ export default async function handler(req, res) {
   const target = `https://apinums.com/apinumsofficial/smsapi/getsms.php?token=${token}`;
 
   try {
-    const response = await fetch(target, {
+    const response = await axios.get(target, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://apinums.com/",
         "Origin": "https://apinums.com",
       },
+      timeout: 10000, // 10 second timeout
     });
 
-    const data = await response.text();
-    res.status(response.status).send(data);
+    // Jo bhi content aaye (JSON ya text), waisa hi bhej dein
+    res.status(response.status).send(response.data);
   } catch (error) {
-    res.status(500).send("API Error: " + error.message);
+    // Asli error message bhejein taake pata chale problem kya hai
+    const errorMsg = error.response
+      ? `Upstream Error: ${error.response.status} - ${JSON.stringify(error.response.data)}`
+      : `Fetch Error: ${error.message}`;
+    res.status(500).send(errorMsg);
   }
 }
