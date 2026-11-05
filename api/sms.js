@@ -1,6 +1,7 @@
 const axios = require('axios');
 
 export default async function handler(req, res) {
+  // Cache disable
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -11,6 +12,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ site: "Moon US Nums", error: "Missing token" });
   }
 
+  // Timestamp (cache-buster)
   const timestamp = Date.now();
   const target = `https://apinums.com/apinumsofficial/smsapi/poll.php?token=${token}&_=${timestamp}`;
 
@@ -58,8 +60,14 @@ export default async function handler(req, res) {
     let code = data.code || data.otp_code || (data.codes && data.codes[0]);
     const isWaiting = !code || code === "waiting" || code === "";
 
-    // ============ HTML FORMAT ============
-    if (req.query.format === 'html') {
+    // ============ AUTO-DETECT: Browser vs Script ============
+    const acceptHeader = req.headers.accept || '';
+    const isBrowser = acceptHeader.includes('text/html') && !req.query.format;
+    const forceHtml = req.query.format === 'html';
+    const forceJson = req.query.format === 'json';
+
+    // Agar Browser hai ya format=html manga gaya hai, to HTML dikhao
+    if ((isBrowser || forceHtml) && !forceJson) {
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
 
       const displayContent = isWaiting
@@ -67,8 +75,8 @@ export default async function handler(req, res) {
              <span class="dot-pulse"></span>
              Waiting for OTP
            </div>
-           <div class="otp-placeholder">--- ---</div>
-           <div class="info-text">Your code will appear here automatically</div>
+           <div class="otp-placeholder">- - - - - -</div>
+           <div class="info-text">Listening for incoming messages...</div>
            <div class="progress-bar"><div class="progress-fill"></div></div>`
         : `<div class="status-badge success-badge">
              <span class="dot-check">✓</span>
@@ -86,13 +94,13 @@ export default async function handler(req, res) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Moon US Nums - OTP</title>
   <meta http-equiv="refresh" content="5">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 60%, #020617 100%);
+      font-family: 'Outfit', -apple-system, sans-serif;
+      background: #09090b;
       color: white;
       min-height: 100vh;
       display: flex;
@@ -103,35 +111,30 @@ export default async function handler(req, res) {
       overflow: hidden;
     }
 
-    body::before {
-      content: '';
+    /* Premium Background Glows */
+    .glow-1, .glow-2 {
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle at 30% 40%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
-                  radial-gradient(circle at 70% 60%, rgba(59, 130, 246, 0.06) 0%, transparent 50%);
-      animation: float 20s ease-in-out infinite;
-      pointer-events: none;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: 0;
     }
-
-    @keyframes float {
-      0%, 100% { transform: translate(0, 0) rotate(0deg); }
-      50% { transform: translate(30px, -30px) rotate(5deg); }
-    }
+    .glow-1 { background: #22c55e; top: -100px; right: -100px; }
+    .glow-2 { background: #3b82f6; bottom: -100px; left: -100px; }
 
     .box {
-      background: rgba(30, 41, 59, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 44px 36px;
-      border-radius: 28px;
+      background: rgba(20, 20, 25, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 48px 40px;
+      border-radius: 32px;
       text-align: center;
       box-shadow: 
-        0 30px 60px -20px rgba(0, 0, 0, 0.6),
-        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+        0 40px 100px -20px rgba(0, 0, 0, 0.8),
+        0 0 0 1px rgba(255, 255, 255, 0.03) inset;
       backdrop-filter: blur(24px);
-      max-width: 420px;
+      max-width: 440px;
       width: 100%;
       position: relative;
       z-index: 1;
@@ -139,7 +142,7 @@ export default async function handler(req, res) {
     }
 
     @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px); }
+      from { opacity: 0; transform: translateY(30px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -147,34 +150,32 @@ export default async function handler(req, res) {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 32px;
-      padding: 10px 20px;
-      background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(59, 130, 246, 0.15));
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      margin-bottom: 36px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 100px;
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 2px;
     }
 
     .brand-logo .moon-icon {
-      font-size: 18px;
-      filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.6));
-      animation: glow 2s ease-in-out infinite;
+      font-size: 20px;
+      animation: floatMoon 3s ease-in-out infinite;
     }
 
-    @keyframes glow {
-      0%, 100% { filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.6)); }
-      50% { filter: drop-shadow(0 0 16px rgba(34, 197, 94, 1)); }
+    @keyframes floatMoon {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
     }
 
     .brand-logo .brand-name {
-      background: linear-gradient(135deg, #22c55e, #3b82f6);
+      background: linear-gradient(135deg, #e2e8f0, #94a3b8);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
-      font-weight: 800;
     }
 
     .status-badge {
@@ -185,37 +186,37 @@ export default async function handler(req, res) {
       border-radius: 100px;
       font-size: 13px;
       font-weight: 600;
-      margin-bottom: 26px;
+      margin-bottom: 30px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
 
     .waiting-badge {
-      background: rgba(245, 158, 11, 0.12);
-      color: #f59e0b;
-      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.2);
     }
 
     .success-badge {
-      background: rgba(34, 197, 94, 0.12);
-      color: #22c55e;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: rgba(34, 197, 94, 0.1);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.2);
     }
 
     .dot-pulse {
       display: inline-block;
       width: 8px;
       height: 8px;
-      background: #f59e0b;
+      background: #fbbf24;
       border-radius: 50%;
-      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
       animation: pulse 1.5s infinite;
     }
 
     @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
     }
 
     .dot-check {
@@ -224,67 +225,64 @@ export default async function handler(req, res) {
       justify-content: center;
       width: 18px;
       height: 18px;
-      background: #22c55e;
-      color: #0f172a;
+      background: #4ade80;
+      color: #09090b;
       border-radius: 50%;
       font-size: 12px;
-      font-weight: 800;
+      font-weight: 900;
     }
 
     .otp-code {
-      font-size: 62px;
+      font-size: 58px;
       font-weight: 900;
-      color: #22c55e;
-      letter-spacing: 14px;
-      margin: 20px 0 10px 0;
-      text-shadow: 
-        0 0 30px rgba(34, 197, 94, 0.6),
-        0 0 60px rgba(34, 197, 94, 0.3);
+      color: #4ade80;
+      letter-spacing: 12px;
+      margin: 15px 0;
+      text-shadow: 0 0 40px rgba(74, 222, 128, 0.4);
       font-family: 'Courier New', monospace;
-      animation: popIn 0.5s ease-out;
-      padding-left: 14px;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      padding-left: 12px;
     }
 
     @keyframes popIn {
-      0% { transform: scale(0.5); opacity: 0; }
-      60% { transform: scale(1.08); }
+      0% { transform: scale(0.7); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
 
     .otp-placeholder {
-      font-size: 48px;
+      font-size: 42px;
       font-weight: 700;
-      color: rgba(148, 163, 184, 0.4);
+      color: rgba(148, 163, 184, 0.2);
       letter-spacing: 8px;
-      margin: 20px 0 10px 0;
+      margin: 15px 0;
       font-family: 'Courier New', monospace;
     }
 
     .info-text {
-      color: #94a3b8;
-      font-size: 13px;
-      margin-bottom: 22px;
-      line-height: 1.5;
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 24px;
+      font-weight: 500;
     }
 
     .progress-bar {
-      height: 4px;
-      background: rgba(255, 255, 255, 0.08);
+      height: 3px;
+      background: rgba(255, 255, 255, 0.05);
       border-radius: 100px;
       overflow: hidden;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
     }
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #f59e0b, #f97316);
+      background: linear-gradient(90deg, #f59e0b, #fbbf24);
       border-radius: 100px;
       width: 30%;
       animation: loading 5s ease-in-out infinite;
     }
 
     .progress-fill.success {
-      background: linear-gradient(90deg, #22c55e, #16a34a);
+      background: linear-gradient(90deg, #22c55e, #4ade80);
       width: 100%;
       animation: none;
     }
@@ -297,62 +295,61 @@ export default async function handler(req, res) {
 
     .divider {
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-      margin: 0 0 24px 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+      margin: 0 0 32px 0;
     }
 
     .site-link {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 14px 28px;
-      background: linear-gradient(135deg, #3b82f6, #6366f1);
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #1d4ed8, #3b82f6);
       color: white;
       text-decoration: none;
-      border-radius: 14px;
+      border-radius: 16px;
       font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 0.3px;
+      font-size: 15px;
       transition: all 0.3s ease;
-      box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.6);
+      box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.4);
       width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .site-link:hover {
       transform: translateY(-2px);
-      box-shadow: 0 15px 40px -10px rgba(59, 130, 246, 0.8);
-      background: linear-gradient(135deg, #2563eb, #4f46e5);
-    }
-
-    .site-link:active {
-      transform: translateY(0);
+      box-shadow: 0 15px 40px -10px rgba(59, 130, 246, 0.6);
+      background: linear-gradient(135deg, #1e40af, #2563eb);
     }
 
     .site-link .arrow {
       transition: transform 0.3s ease;
+      font-size: 18px;
     }
 
     .site-link:hover .arrow {
-      transform: translateX(4px);
+      transform: translateX(5px);
     }
 
     .footer-text {
-      color: #475569;
+      color: #334155;
       font-size: 11px;
-      margin-top: 20px;
+      margin-top: 24px;
+      font-weight: 500;
       letter-spacing: 0.5px;
     }
 
     @media (max-width: 480px) {
-      .box { padding: 36px 24px; border-radius: 22px; }
-      .otp-code { font-size: 48px; letter-spacing: 10px; }
-      .otp-placeholder { font-size: 36px; letter-spacing: 6px; }
-      .brand-logo { font-size: 11px; padding: 8px 16px; }
+      .box { padding: 36px 24px; border-radius: 24px; }
+      .otp-code { font-size: 46px; letter-spacing: 8px; }
+      .otp-placeholder { font-size: 32px; letter-spacing: 6px; }
     }
   </style>
 </head>
 <body>
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+
   <div class="box">
     <div class="brand-logo">
       <span class="moon-icon">🌙</span>
@@ -364,13 +361,12 @@ export default async function handler(req, res) {
     <div class="divider"></div>
 
     <a href="https://moon-us-nums.free.nf/" target="_blank" class="site-link">
-      <span>🌐</span>
-      <span>Visit Our Website</span>
+      <span>🌐 Visit Our Website</span>
       <span class="arrow">→</span>
     </a>
 
     <div class="footer-text">
-      Powered by Moon US Nums · Auto-refreshing
+      Auto-refreshing every 5s · Powered by Moon US Nums
     </div>
   </div>
 </body>
@@ -378,7 +374,7 @@ export default async function handler(req, res) {
       return res.status(200).send(html);
     }
 
-    // ============ JSON FORMAT ============
+    // ============ JSON FORMAT (For Bots/Scripts) ============
     if (isWaiting) {
       return res.status(200).json({
         site: "Moon US Nums",
